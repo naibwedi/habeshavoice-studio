@@ -1,0 +1,25 @@
+{
+  "name": "HabeshaVoice Studio",
+  "short_name": "HabeshaVoice",
+  "description": "Tigrinya and Amharic speech studio",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#111413",
+  "theme_color": "#171b18",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/logo.png",
+      "sizes": "1254x1254",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ],
+  "id": "/",
+  "scope": "/"
+}
