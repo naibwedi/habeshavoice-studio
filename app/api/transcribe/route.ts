@@ -5,7 +5,7 @@ export async function POST(request:Request){
  let audioKey:string|null=null;
  try{
  const user=await owner(request);const b=bindings();
- if(!b.ASR_ENDPOINT||!b.ASR_API_KEY)throw new ApiError(503,"The speech engine is not connected yet. Your audio has not been uploaded. Explore a text sample or ask the workspace owner to connect the inference service.");
+ if(!b.ASR_ENDPOINT||!b.ASR_API_KEY)throw new ApiError(503,"The speech engine is not connected yet. Your audio has not been uploaded. Ask the workspace owner to connect the inference service.");
  const endpoint=new URL(b.ASR_ENDPOINT);if(endpoint.protocol!=="https:")throw new ApiError(503,"The speech engine requires a secure connection.");
  if(!request.headers.get("content-type")?.startsWith("multipart/form-data"))throw new ApiError(415,"Upload an audio file using the studio.");
  const bytes=await boundedBody(request,MAX_AUDIO_BYTES+65536);

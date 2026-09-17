@@ -22,11 +22,11 @@ export function failure(e:unknown){
  console.error("HabeshaVoice request failed",{type:e instanceof Error?e.name:"Unknown"});
  return json({error:"Your request could not be completed. Please try again; your edits have been preserved."},503);
 }
-export type Row={id:string;owner:string;title:string;language:"ti"|"am";text:string;original:string;created_at:string;duration:number;source:"demo"|"recording"|"upload";audio_key:string|null;mime:string|null};
+export type Row={id:string;owner:string;title:string;language:"ti"|"am";text:string;original:string;created_at:string;duration:number;source:"recording"|"upload";audio_key:string|null;mime:string|null};
 export function publicTranscript(row:Row):Transcript{return{id:row.id,title:row.title,language:row.language,text:row.text,original:row.original,createdAt:row.created_at,duration:row.duration,source:row.source,hasAudio:!!row.audio_key};}
 export async function getOwned(id:string,user:string){
  if(!/^[0-9a-f-]{36}$/i.test(id))throw new ApiError(404,"This transcript was not found.");
- const row=await db().prepare("SELECT * FROM transcripts WHERE id = ? AND owner = ?").bind(id,user).first<Row>();
+ const row=await db().prepare("SELECT * FROM transcripts WHERE id = ? AND owner = ? AND source != 'demo'").bind(id,user).first<Row>();
  if(!row)throw new ApiError(404,"This transcript was not found.");
  return row;
 }
@@ -40,7 +40,7 @@ export async function boundedBody(request:Request,max:number){
 }
 export async function readJson(request:Request){const bytes=await boundedBody(request,200000);return JSON.parse(new TextDecoder().decode(bytes));}
 export async function libraryLimit(user:string){
- const count=await db().prepare("SELECT count(*) AS n FROM transcripts WHERE owner = ?").bind(user).first<{n:number}>();
+ const count=await db().prepare("SELECT count(*) AS n FROM transcripts WHERE owner = ? AND source != 'demo'").bind(user).first<{n:number}>();
  if((count?.n??0)>=100)throw new ApiError(429,"Your library holds 100 sessions. Export and delete a session before adding another.");
 }
 

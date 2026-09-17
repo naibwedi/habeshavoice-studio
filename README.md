@@ -8,7 +8,6 @@ A private, responsive speech workspace for **Tigrinya and Amharic**. Record or u
 
 - Professional desktop and mobile UI with a custom brand mark.
 - Browser recording, playback, file previews, and explicit upload consent.
-- Tigrinya and Amharic text samples clearly labeled as illustrative demo content.
 - Private D1-backed transcript library and R2 audio storage.
 - Editable titles/transcripts, immutable original, copy, UTF-8 TXT/Markdown export, print/PDF.
 - Authenticated APIs, ownership checks, same-origin writes, bounded uploads and inference.
@@ -17,9 +16,9 @@ A private, responsive speech workspace for **Tigrinya and Amharic**. Record or u
 
 ## Release status
 
-**The demo and library work. Real transcription requires deploying the inference service and setting two server secrets.**
+**The app is published, but real transcription requires deploying the inference service and setting two server secrets.**
 
-No model is bundled in the web deployment. The app never substitutes sample text for a real upload. It reports when the speech engine is not configured.
+No model is bundled in the web deployment. The app does not generate placeholder transcripts. It reports when the speech engine is not configured.
 
 Speech accuracy has **not been measured** on representative, native-speaker-reviewed data. Dialect recognition, translation, summaries, live streaming, and offline ASR are not included. This is a production-oriented first release, not a claim of completed production acceptance.
 
@@ -80,7 +79,7 @@ Five minutes and 25 MB per recording; 100 library sessions per user; 20 transcri
 
 Audio stays on the device until the user consents and clicks Transcribe. Successful recordings remain private with their transcript until deleted. Temporary inference files are cleaned up. This app does not train models from recordings.
 
-Demo text has no audio attached. Exports contain current edited text. PDF uses the browser's print dialog and Ethiopic font support.
+Exports contain current edited text. PDF uses the browser's print dialog and Ethiopic font support.
 
 ## Evaluate accuracy
 

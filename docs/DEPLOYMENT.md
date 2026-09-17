@@ -30,7 +30,7 @@ Set via the hosting platform:
 - ASR_ENDPOINT: full HTTPS URL ending in /v1/transcribe.
 - ASR_API_KEY: matching random secret.
 
-With either missing, demo/library stay available and transcription returns a clear 503. Readiness in the UI indicates configuration, not a continuous upstream health check.
+With either missing, recording and library views stay available and transcription returns a clear 503. Readiness in the UI indicates configuration, not a continuous upstream health check.
 
 ## Production acceptance still required
 
