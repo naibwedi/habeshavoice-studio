@@ -54,9 +54,9 @@ export default function Studio() {
   const modalRef = useRef<HTMLDivElement>(null);
   const pending = useRef<(() => void) | null>(null);
   const stateRef = useRef({selected});
-  stateRef.current = {selected};
+  useEffect(() => {stateRef.current = {selected};}, [selected]);
   const notify = useCallback((message: string) => setToast(message), []);
-  useEffect(() => { setHydrated(true); }, []);
+  useEffect(() => {queueMicrotask(() => setHydrated(true));}, []);
   useEffect(() => {
     if ("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js").catch(() => {});
   }, []);
@@ -72,9 +72,10 @@ export default function Studio() {
     return () => clearTimeout(id);
   }, [toast]);
   useEffect(() => {
-    if (!file) {setFileUrl(""); return;}
-    const url = URL.createObjectURL(file); setFileUrl(url);
-    return () => URL.revokeObjectURL(url);
+    if (!file) {queueMicrotask(() => setFileUrl("")); return;}
+    const url = URL.createObjectURL(file); let active = true;
+    queueMicrotask(() => {if(active) setFileUrl(url);});
+    return () => {active = false; URL.revokeObjectURL(url);};
   }, [file]);
   useEffect(() => {
     if (!recording) return;
@@ -248,7 +249,3 @@ export default function Studio() {
     </div></div>}
   </div>;
 }
-
-
-
-

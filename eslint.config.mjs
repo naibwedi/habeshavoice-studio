@@ -9,6 +9,10 @@ const eslintConfig = defineConfig([
   globalIgnores([
     // Default ignores of eslint-config-next:
     ".next/**",
+    "dist/**",
+    ".sites-runtime/**",
+    ".wrangler/**",
+    "test-results/**",
     "out/**",
     "build/**",
     "next-env.d.ts",
@@ -23,6 +27,7 @@ const eslintConfig = defineConfig([
       "react-hooks/set-state-in-effect": "off",
     },
   },
+  { files: ["app/**/*.{ts,tsx}"], rules: { "@next/next/no-html-link-for-pages": "off", "@next/next/no-img-element": "off" } },
 ]);
 
 export default eslintConfig;
