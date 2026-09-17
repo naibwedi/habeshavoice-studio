@@ -41,7 +41,7 @@ npm test
 npm run test:api
 ~~~
 
-The API smoke test requires the running local server and initialized database. It creates and deletes its own test record.
+The API smoke test requires the running local server and initialized database. It verifies authentication and that demo creation remains disabled.
 
 ## Architecture
 
@@ -65,7 +65,7 @@ The first release uses a bounded HTTP request with a 180-second timeout, not a d
 
 See [deployment instructions](docs/DEPLOYMENT.md).
 
-1. Deploy the inference service behind HTTPS on suitable infrastructure.
+1. Deploy the inference service behind HTTPS on suitable infrastructure. The [Modal setup](docs/DEPLOYMENT.md#modal-starter-deployment) uses an L4 GPU and the included wrapper.
 2. Set a random ASR_API_KEY of at least 32 characters on the service.
 3. Set the app's server-only ASR_ENDPOINT to the full /v1/transcribe URL and ASR_API_KEY to the same secret.
 4. Verify health, then test real recordings in both languages end to end.
@@ -102,5 +102,3 @@ Read [SECURITY.md](SECURITY.md) and [verification results](docs/VERIFICATION.md)
 - App code: MIT. Third-party code and model weights retain their own licenses. The vendored Sites build plugin retains its license in build/sites-vite-plugin.LICENSE.
 
 No datasets, private recordings, credentials or model weights are committed.
-
-
