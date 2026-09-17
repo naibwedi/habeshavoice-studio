@@ -47,7 +47,7 @@ The current service has no persistent queue or model-compute cancellation after 
 
 ## Modal Starter deployment
 
-The repository includes [inference/modal_app.py](../inference/modal_app.py), which wraps the authenticated FastAPI API in a Modal L4 GPU function. It keeps at most one GPU container active, scales to zero, and persists model downloads in a Modal Volume. GPU use requires an authenticated Modal account and a payment method even with free monthly credits. Set a spending limit in Modal before enabling traffic.
+The repository includes [inference/modal_app.py](../inference/modal_app.py), which wraps the authenticated FastAPI API in a Modal L4 GPU function. It keeps at most one GPU container active, scales to zero, and persists model downloads in a Modal Volume. GPU use requires an authenticated Modal account and a payment method even with free monthly credits. Set the workspace spend limit to $0 in Modal Usage & billing before enabling traffic if the service should stop when free credits run out. Modal states that Volume storage charges may continue after the limit is reached.
 
 Install the Modal CLI and authenticate:
 

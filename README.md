@@ -16,15 +16,15 @@ A private, responsive speech workspace for **Tigrinya and Amharic**. Record or u
 
 ## Release status
 
-**The app is published, but real transcription requires deploying the inference service and setting two server secrets.**
+**The private app is published and connected to the Modal speech engine.**
 
-No model is bundled in the web deployment. The app does not generate placeholder transcripts. It reports when the speech engine is not configured.
+The model runs separately on a Modal L4 GPU. The web app does not generate placeholder transcripts. The Modal workspace has a $0 out-of-pocket spend limit; transcription pauses when the monthly credits are exhausted.
 
 Speech accuracy has **not been measured** on representative, native-speaker-reviewed data. Dialect recognition, translation, summaries, live streaming, and offline ASR are not included. This is a production-oriented first release, not a claim of completed production acceptance.
 
 ## Local development
 
-Requires Node.js 24, npm and Git. Use Python 3.12 for inference; a Linux GPU host is recommended for the model.
+Requires Node.js 24, npm and Git. Use Python 3.11 for inference; a Linux GPU host is recommended for the model.
 
 ~~~sh
 npm ci
