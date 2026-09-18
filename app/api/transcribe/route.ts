@@ -40,7 +40,7 @@ export async function POST(request:Request){
  audioKey=null;
  return json({transcript:{id,title,language,text:result.text,original:result.text,createdAt,duration:result.duration,source,hasAudio:true}},201);
  }catch(e){
- console.error("Transcription stage failed",{stage,type:e instanceof Error?e.name:"Unknown",message:e instanceof Error?e.message:"Unknown"});
+ if(!(e instanceof ApiError))console.error("Transcription stage failed",{stage,type:e instanceof Error?e.name:"Unknown",message:e instanceof Error?e.message:"Unknown"});
  if(audioKey){try{await bucket().delete(audioKey);}catch{console.error("Audio cleanup failed");}}
  if(e instanceof DOMException && (e.name==="TimeoutError"||e.name==="AbortError"))return json({error:"Transcription took too long. Your audio is still on your device. Please try a shorter clip."},504);
  return failure(e);
