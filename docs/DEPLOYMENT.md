@@ -5,7 +5,7 @@ HabeshaVoice Studio runs as a Next.js app on Vercel. A private Vercel Blob store
 ## Vercel web app
 
 1. Import this GitHub repository into Vercel as a **Next.js** project. Keep the root directory at the repository root and the build command as `npm run build`.
-2. Create a **private** Blob store from the project's Storage tab and connect it to the project. Vercel adds `BLOB_READ_WRITE_TOKEN` automatically.
+2. Create a **private** Blob store from the project's Storage tab and connect it to the project. When connecting it, select **Add a read-write token env var to this connection** so `BLOB_READ_WRITE_TOKEN` is available to the app. This is required for the authenticated browser upload flow.
 3. Add `STUDIO_PASSWORD` and a random `SESSION_SECRET` of at least 32 characters as encrypted production environment variables. The password protects the single-owner studio; do not reuse an existing account password.
 4. Add the HTTPS `ASR_ENDPOINT` ending in `/v1/transcribe` and the matching `ASR_API_KEY` as server-only production variables.
 5. Deploy, sign in, and verify record/upload, transcription, playback, editing, export, and deletion.
