@@ -6,12 +6,14 @@ The habeshavoice-asr-v2 secret must contain ASR_API_KEY (32+ characters).
 from __future__ import annotations
 
 from contextlib import asynccontextmanager
+import os
 from pathlib import Path
 
 import modal
 
 HERE = Path(__file__).resolve().parent
-app = modal.App("habeshavoice-asr-v2")
+deployment_name = os.getenv("HABESHA_ASR_DEPLOYMENT", "habeshavoice-asr-v2")
+app = modal.App(deployment_name)
 model_cache = modal.Volume.from_name("habeshavoice-model-cache", create_if_missing=True)
 
 image = (
@@ -39,7 +41,7 @@ image = (
     min_containers=0,
     scaledown_window=90,
     volumes={"/mnt/habesha_weights": model_cache},
-    secrets=[modal.Secret.from_name("habeshavoice-asr-v2")],
+    secrets=[modal.Secret.from_name(deployment_name)],
 )
 @modal.asgi_app()
 def inference_api():

@@ -69,7 +69,7 @@ export async function recordAttempt() {
   const prefix = "attempts/" + new Date().toISOString().slice(0,10) + "/";
   const current = await list({prefix,limit:21});
   if(current.blobs.length >= 20) throw new ApiError(429,"You have reached today's transcription limit. Please try again tomorrow.");
-  await put(prefix + crypto.randomUUID() + ".txt", "", {access:"private",contentType:"text/plain"});
+  await put(prefix + crypto.randomUUID() + ".txt", "1", {access:"private",contentType:"text/plain"});
 }
 export async function readJson(request: Request) {
   if (Number(request.headers.get("content-length")) > 200000) throw new ApiError(413, "This request is too large.");
@@ -82,4 +82,3 @@ export function publicTranscript(row: Row): Transcript {
   const { id,title,language,text,original,createdAt,duration,source,hasAudio } = row;
   return {id,title,language,text,original,createdAt,duration,source,hasAudio};
 }
-

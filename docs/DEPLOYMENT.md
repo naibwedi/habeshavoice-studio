@@ -22,7 +22,7 @@ The `inference/` directory contains an authenticated FastAPI service that decode
 modal deploy inference/modal_app.py
 ```
 
-Create a Modal Secret named `habeshavoice-asr-v2` containing the same `ASR_API_KEY` configured in Vercel. The wrapper uses an L4 GPU, scales to zero, and caches model downloads in a persistent volume. Check `/healthz` before routing app traffic. The first request after idle can be slower while the GPU starts.
+For an isolated Vercel speech endpoint, create a Modal Secret named `habeshavoice-asr-vercel` containing the same `ASR_API_KEY` configured in Vercel, set `HABESHA_ASR_DEPLOYMENT=habeshavoice-asr-vercel` when running the deploy command, and use its printed URL. The wrapper uses an L4 GPU, scales to zero, and caches model downloads in a persistent volume. Check `/healthz` before routing app traffic. The first request after idle can be slower while the GPU starts.
 
 For a self-hosted GPU service, use the `inference/Dockerfile` and an HTTPS reverse proxy. Restrict request size and connection count, and keep the API key in server-side secrets.
 
