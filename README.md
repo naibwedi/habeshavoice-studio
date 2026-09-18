@@ -11,7 +11,7 @@ A private, responsive speech workspace for **Tigrinya and Amharic**. Record or u
 - Private D1-backed transcript library and R2 audio storage.
 - Editable titles/transcripts, immutable original, copy, UTF-8 TXT/Markdown export, print/PDF.
 - Authenticated APIs, ownership checks, same-origin writes, bounded uploads and inference.
-- Separate FastAPI service using Meta Omnilingual ASR, audio decoding and bounded chunks.
+- Separate FastAPI service using Ethio-ASR for Tigrinya and Amharic, audio decoding and bounded chunks.
 - TypeScript checks, validation tests, API smoke tests, Python tests, GitHub Actions.
 
 ## Release status
@@ -54,7 +54,7 @@ Sites authenticated React + Vinext / Cloudflare Worker
     |
     | HTTPS + server-only bearer secret
     v
-FastAPI -> FFmpeg -> mono 16 kHz chunks -> Omnilingual ASR
+FastAPI -> FFmpeg -> mono 16 kHz chunks -> Ethio-ASR CTC
     |
 Validated text + duration -> private library -> user review
 ~~~
@@ -95,9 +95,8 @@ Read [SECURITY.md](SECURITY.md) and [verification results](docs/VERIFICATION.md)
 
 ## Sources and licenses
 
-- [Omnilingual ASR](https://github.com/facebookresearch/omnilingual-asr)
-- [Model card](https://huggingface.co/facebook/omniASR-LLM-300M)
-- [Supported language IDs](https://github.com/facebookresearch/omnilingual-asr/blob/main/src/omnilingual_asr/models/wav2vec2_llama/lang_ids.py)
+- [Ethio-ASR model and CC-BY-4.0 license](https://huggingface.co/badrex/Ethio-ASR-multilingual-600M)
+- [Ethio-ASR research paper](https://arxiv.org/abs/2603.23654)
 - Logo: original generated asset created for this project.
 - App code: MIT. Third-party code and model weights retain their own licenses. The vendored Sites build plugin retains its license in build/sites-vite-plugin.LICENSE.
 
