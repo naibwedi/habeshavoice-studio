@@ -1,103 +1,56 @@
 # HabeshaVoice Studio
 
-A private, responsive speech workspace for **Tigrinya and Amharic**. Record or upload short audio, review editable Ethiopic transcripts, preserve the original, and export your words.
+**A private speech-to-text workspace for Tigrinya and Amharic.** Record or upload audio, review the transcript alongside the original recording, make corrections, and export your words.
 
-<p align="center"><img src="docs/studio-desktop.png" alt="HabeshaVoice Studio desktop preview" width="1000"></p>
+<p align="center"><img src="docs/studio-desktop.png" alt="HabeshaVoice Studio on desktop" width="1000"></p>
 
-## What works
+## The studio
 
-- Professional desktop and mobile UI with a custom brand mark.
-- Browser recording, playback, file previews, and explicit upload consent.
-- Private D1-backed transcript library and R2 audio storage.
-- Editable titles/transcripts, immutable original, copy, UTF-8 TXT/Markdown export, print/PDF.
-- Authenticated APIs, ownership checks, same-origin writes, bounded uploads and inference.
-- Separate FastAPI service using Ethio-ASR for Tigrinya and Amharic, audio decoding and bounded chunks.
-- TypeScript checks, validation tests, API smoke tests, Python tests, GitHub Actions.
+- **Capture naturally.** Record in the browser or upload an audio file, then listen before transcribing.
+- **Work in your language.** Choose Tigrinya or Amharic. The speech service uses [Ethio-ASR](https://huggingface.co/badrex/Ethio-ASR-multilingual-600M).
+- **Keep the original.** Edit the working transcript while retaining the first machine transcript for reference.
+- **Make it useful.** Search saved sessions, copy text, download UTF-8 TXT or Markdown, or print to PDF.
+- **Stay in control.** Audio uploads only after explicit consent. Recordings and transcripts remain in the private library until deleted.
 
-## Release status
-
-**The private app is published and connected to the Modal speech engine.**
-
-The model runs separately on a Modal L4 GPU. The web app does not generate placeholder transcripts. The Modal workspace has a $0 out-of-pocket spend limit; transcription pauses when the monthly credits are exhausted.
-
-Speech accuracy has **not been measured** on representative, native-speaker-reviewed data. Dialect recognition, translation, summaries, live streaming, and offline ASR are not included. This is a production-oriented first release, not a claim of completed production acceptance.
-
-## Local development
-
-Requires Node.js 24, npm and Git. Use Python 3.11 for inference; a Linux GPU host is recommended for the model.
-
-~~~sh
-npm ci
-npm run build
-npm run db:local
-npm run dev
-~~~
-
-Open the printed local URL, normally http://localhost:5173. The protected page uses the starter's loopback-only development sign-in. Local mock identity is excluded from production.
-
-~~~sh
-npm run typecheck
-npm test
-npm run test:api
-~~~
-
-The API smoke test requires the running local server and initialized database. It verifies authentication and that demo creation remains disabled.
+Automatic speech recognition can miss dialectal words, names, and short phrases. Review important transcripts against the recording.
 
 ## Architecture
 
-~~~text
-Browser recording / upload
-    |
-Sites authenticated React + Vinext / Cloudflare Worker
-    |-- D1: owned transcripts, daily inference quota
-    |-- R2: private original audio
-    |
-    | HTTPS + server-only bearer secret
-    v
-FastAPI -> FFmpeg -> mono 16 kHz chunks -> Ethio-ASR CTC
-    |
-Validated text + duration -> private library -> user review
-~~~
+The browser app handles capture, review, editing, and export. Authenticated Next.js routes manage the private transcript library and audio storage in Vercel Blob. A separate FastAPI service decodes audio and runs Ethio-ASR; its bearer credential stays on the server.
 
-The first release uses a bounded HTTP request with a 180-second timeout, not a durable job queue. Each inference process handles one model job and rejects extra work with 429. Add a durable queue and measured capacity plan before higher traffic.
+```text
+Browser → web app → authenticated API → speech service
+                     ├─ private transcript records
+                     └─ private audio storage
+```
 
-## Connect transcription
+The speech service is intentionally separate from the web deployment so the interface can run on a standard web host while inference uses GPU infrastructure.
 
-See [deployment instructions](docs/DEPLOYMENT.md).
+## Run locally
 
-1. Deploy the inference service behind HTTPS on suitable infrastructure. The [Modal setup](docs/DEPLOYMENT.md#modal-starter-deployment) uses an L4 GPU and the included wrapper.
-2. Set a random ASR_API_KEY of at least 32 characters on the service.
-3. Set the app's server-only ASR_ENDPOINT to the full /v1/transcribe URL and ASR_API_KEY to the same secret.
-4. Verify health, then test real recordings in both languages end to end.
-5. Measure accuracy, correction time, latency and cost before expanding access.
+Use Node.js 24 and npm. Connect a private Vercel Blob store and set the server variables in [deployment instructions](docs/DEPLOYMENT.md) before using the library or transcription. Python 3.11 and a GPU-capable Linux host are needed only if you run the inference service yourself.
 
-Never expose the secret in browser code, Git, public environment variables or query strings.
+```sh
+npm ci
+npm run dev
+```
 
-## Limits and privacy
+Open the URL printed by the development server. Sign in with the studio password you configured. For speech recognition, set the server-side `ASR_ENDPOINT` and `ASR_API_KEY` described in [deployment instructions](docs/DEPLOYMENT.md).
 
-Five minutes and 25 MB per recording; 100 library sessions per user; 20 transcription attempts per user per UTC day. Decode-time duration is authoritative.
+```sh
+npm run typecheck
+npm test
+npm run build
+```
 
-Audio stays on the device until the user consents and clicks Transcribe. Successful recordings remain private with their transcript until deleted. Temporary inference files are cleaned up. This app does not train models from recordings.
+## Deploy
 
-Exports contain current edited text. PDF uses the browser's print dialog and Ethiopic font support.
+Deploy the Next.js app to Vercel, attach a **private** Vercel Blob store, and configure the studio and speech-service secrets. The [deployment guide](docs/DEPLOYMENT.md) covers setup and verification. Keep `ASR_API_KEY` in server-side secrets; never put it in browser code or source control.
 
-## Evaluate accuracy
+## Project notes
 
-~~~sh
-python scripts/benchmark.py evaluation.jsonl
-~~~
+- [Security and privacy](SECURITY.md)
+- [Verification](docs/VERIFICATION.md)
+- [Speech model](https://huggingface.co/badrex/Ethio-ASR-multilingual-600M) and [research paper](https://arxiv.org/abs/2603.23654)
 
-Each line has language (ti or am), reference, and hypothesis. The script reports WER and CER separately by language. It uses NFC and whitespace normalization without merging Ethiopic characters. Use held-out speakers, native-speaker-checked references, and recordings covering regional speech, names, numbers, noise and English mixing.
-
-## Security and verification
-
-Read [SECURITY.md](SECURITY.md) and [verification results](docs/VERIFICATION.md). Production identity comes from the trusted Sites dispatcher. Do not expose a separately hosted Worker behind a gateway that accepts forged identity headers.
-
-## Sources and licenses
-
-- [Ethio-ASR model and CC-BY-4.0 license](https://huggingface.co/badrex/Ethio-ASR-multilingual-600M)
-- [Ethio-ASR research paper](https://arxiv.org/abs/2603.23654)
-- Logo: original generated asset created for this project.
-- App code: MIT. Third-party code and model weights retain their own licenses. The vendored Sites build plugin retains its license in build/sites-vite-plugin.LICENSE.
-
-No datasets, private recordings, credentials or model weights are committed.
+The application code is MIT licensed. The model and other dependencies retain their own licenses. No credentials, user recordings, or model weights belong in this repository.

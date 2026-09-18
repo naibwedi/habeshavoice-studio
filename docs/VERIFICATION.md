@@ -1,16 +1,9 @@
-# Release verification
+# Verification
 
-Verified locally on 17 September 2026.
+The Vercel migration was checked with `npm run typecheck`, `npm test`, and `npm run build`. The Next.js build includes the sign-in page, private upload route, transcription route, and transcript library routes.
 
-- Production build: passed.
-- TypeScript: passed.
-- Node validation tests: 6 passed.
-- Authenticated API smoke test: create, read, edit, immutable original, same-origin write protection, missing audio, missing engine response, delete: passed.
-- Python inference contract tests: 11 passed, including real FFmpeg audio decode, chunk limits, temporary cleanup, authorization, silence rejection and upload limits. These use a deterministic fake model; they do not measure ASR accuracy.
-- Browser workflows in Edge: 5 passed. The suite exercised save/edit/export/reload/delete, fake-device microphone capture and consent, mobile language switching, unsaved-edit protection, install manifest, and screenshots.
-- Mobile width 390px: no horizontal overflow or framework overlay.
-- WebMCP read-only transcript tool: schema checked; valid input returned current edited text; invalid input failed.
-- Runtime npm audit: 0 vulnerabilities after updating the transitive browser mapping package.
+The speech service was separately exercised with a public four-second Tigrinya audio sample. It returned a transcript in about one second while warm. A cold-start health check took about 19 seconds after model weights were cached. These measurements do not establish accuracy for a specific speaker or dialect.
 
-Not validated here: GPU container build, live Omnilingual model inference, actual speech accuracy, real production traffic/load, backup/restore, or hosted inference configuration. The deployed app is private and shows real transcription as unavailable until ASR_ENDPOINT and ASR_API_KEY are configured.
+Before treating a Vercel deployment as operational, verify the production environment variables and private Blob connection, then complete a browser flow: sign in, record or upload, transcribe, play the saved audio, edit and export, sign out, and delete. Check the resulting deployment and function logs.
 
+Accuracy still requires native-speaker review of representative Tigrinya and Amharic recordings.

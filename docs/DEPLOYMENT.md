@@ -1,69 +1,33 @@
 # Deployment
 
-## Web application
+HabeshaVoice Studio runs as a Next.js app on Vercel. A private Vercel Blob store holds recordings and transcript JSON. A separate GPU service runs Ethio-ASR. The Vercel app and speech service communicate over HTTPS with a server-only bearer key.
 
-This app uses private Sites hosting, DB (D1) and BUCKET (R2). Sites handles identity. Publish the whole server-backed build, not only static assets. Run npm run build; deployable output is in dist/. Migrations are in drizzle/ and must be applied during deployment, never at request time.
+## Vercel web app
 
-The checked-in hosting project ID identifies this app. Create a new Site identity when forking to another owner.
+1. Import this GitHub repository into Vercel as a **Next.js** project. Keep the root directory at the repository root and the build command as `npm run build`.
+2. Create a **private** Blob store from the project's Storage tab and connect it to the project. Vercel adds `BLOB_READ_WRITE_TOKEN` automatically.
+3. Add `STUDIO_PASSWORD` and a random `SESSION_SECRET` of at least 32 characters as encrypted production environment variables. The password protects the single-owner studio; do not reuse an existing account password.
+4. Add the HTTPS `ASR_ENDPOINT` ending in `/v1/transcribe` and the matching `ASR_API_KEY` as server-only production variables.
+5. Deploy, sign in, and verify record/upload, transcription, playback, editing, export, and deletion.
 
-## Inference
+Browser uploads go directly to the private Blob store through an authenticated upload-token route. This avoids Vercel's 4.5 MB Function request limit. The server fetches the private recording for inference, then saves the transcript. A fresh Vercel library is created; data from another host is not imported automatically.
 
-Model weights and GPU memory do not fit in a Cloudflare Worker. Deploy the separate service on a Linux inference host:
+Keep the Blob token, studio password, session secret, and speech key out of client code and Git. Rotate the session secret when revoking all active sessions. A service worker caches only the offline fallback and public assets.
 
-~~~sh
-cd inference
-docker build -t habeshavoice-inference .
-docker run --gpus all --env-file .env -p 127.0.0.1:8000:8000 habeshavoice-inference
-~~~
+## Speech service
 
-Copy .env.example to .env and replace the placeholder with a random secret of at least 32 characters. Default model: badrex/Ethio-ASR-multilingual-600M, a 600M-parameter CTC model trained for Tigrinya and Amharic. Reserve GPU headroom and measure on your hardware.
+The `inference/` directory contains an authenticated FastAPI service that decodes audio with FFmpeg and runs the [Ethio-ASR multilingual model](https://huggingface.co/badrex/Ethio-ASR-multilingual-600M). Deploy it on a Linux GPU host. The included Modal wrapper is one option:
 
-The Dockerfile is a starting point. Build and smoke-test the exact torch/transformers/CUDA combination on the target GPU host. ASR_DEVICE=cpu is supported in code but may exceed the app's three-minute request timeout.
-
-Use an HTTPS reverse proxy, request-body and connection limits, adequate temporary disk, and server-side secret storage. Do not log authorization headers or audio/transcript payloads.
-
-GET /healthz returns readiness. POST /v1/transcribe requires bearer auth and multipart audio + language (ti or am). API documentation endpoints are disabled in production.
-
-## App secrets
-
-Set via the hosting platform:
-- ASR_ENDPOINT: full HTTPS URL ending in /v1/transcribe.
-- ASR_API_KEY: matching random secret.
-
-With either missing, recording and library views stay available and transcription returns a clear 503. Readiness in the UI indicates configuration, not a continuous upstream health check.
-
-## Production acceptance still required
-
-- Build and run the GPU image on the intended host.
-- Verify real speech through upload, inference, playback, edits, exports and deletion for both languages.
-- Native-speaker review, held-out WER/CER and correction-time benchmarks.
-- Load, timeout and network interruption tests; monitoring and alerting.
-- Backups/restore, retention, secret rotation and incident ownership.
-- Review exact model/dependency licenses for your business use.
-- Preserve private access until audience and operating costs are settled.
-
-The current service has no persistent queue or model-compute cancellation after a disconnected request. Scale and price it before expanding access.
-
-
-## Modal Starter deployment
-
-The repository includes [inference/modal_app.py](../inference/modal_app.py), which wraps the authenticated FastAPI API in a Modal L4 GPU function. It keeps at most one GPU container active, scales to zero, and persists model downloads in a Modal Volume. GPU use requires an authenticated Modal account and a payment method even with free monthly credits. Set the workspace spend limit to $0 in Modal Usage & billing before enabling traffic if the service should stop when free credits run out. Modal states that Volume storage charges may continue after the limit is reached.
-
-Install the Modal CLI and authenticate:
-
-~~~sh
-python -m pip install "modal>=1.0,<2"
-modal setup
-~~~
-
-Create a Modal Secret named habeshavoice-asr-v2 containing ASR_API_KEY, a random value of at least 32 characters. Use the Modal dashboard's Secrets page. Keep the value out of Git and command history. Deploy from the repository root:
-
-~~~sh
+```sh
 modal deploy inference/modal_app.py
-~~~
+```
 
-Modal prints an HTTPS URL for inference_api. Check its /healthz path and verify it returns {"ready":true}. The first start downloads model weights and may take several minutes; the cache Volume prevents repeated downloads. Test real short Tigrinya and Amharic recordings.
+Create a Modal Secret named `habeshavoice-asr-v2` containing the same `ASR_API_KEY` configured in Vercel. The wrapper uses an L4 GPU, scales to zero, and caches model downloads in a persistent volume. Check `/healthz` before routing app traffic. The first request after idle can be slower while the GPU starts.
 
-Set the Site's runtime ASR_ENDPOINT to the printed URL with /v1/transcribe appended, and ASR_API_KEY to the same secret. Mark the key as secret and redeploy the current saved Site version to apply the environment revision. Do not put the key in browser code, Git, or .openai/hosting.json.
+For a self-hosted GPU service, use the `inference/Dockerfile` and an HTTPS reverse proxy. Restrict request size and connection count, and keep the API key in server-side secrets.
 
-The web app times out inference after 180 seconds. Modal Web Functions issue a redirect after 150 seconds, and the app rejects upstream redirects. A transcription must therefore complete within 150 seconds. Measure L4 speed on real recordings before relying on the five-minute upload limit. Modal's 90-second idle window also consumes GPU credit after each request. It improves repeat-request latency but uses more of the free allowance.
+## Verification
+
+Run `npm run typecheck`, `npm test`, and `npm run build` before deploying. Test a real short recording in both languages through the public Vercel URL. Review transcripts against the audio; names and dialectal speech may require correction. Monitor Vercel function errors and speech-service logs, and verify deletion removes both the transcript and its audio.
+
+The app currently uses a synchronous inference request. Capacity, long-running audio, backups, and dialect accuracy should be measured before opening the studio to many users.

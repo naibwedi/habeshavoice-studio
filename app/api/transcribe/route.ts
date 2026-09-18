@@ -1,49 +1,38 @@
 import { languageSchema,inferenceSchema,MAX_AUDIO_BYTES } from "../../../lib/validation";
-import { owner,db,bucket,bindings,json,failure,ApiError,boundedBody,libraryLimit } from "../../../lib/server";
+import { owner,json,failure,ApiError,libraryLimit,audioHead,getAudio,removeAudio,saveRow,recordAttempt, type Row } from "../../../lib/server";
+import { z } from "zod";
 export const dynamic="force-dynamic";
+export const maxDuration=300;
+const inputSchema=z.object({audioUrl:z.string().url(),language:languageSchema,source:z.enum(["recording","upload"]),fileName:z.string().min(1).max(200),mime:z.string().max(100),consent:z.literal(true)}).strict();
 export async function POST(request:Request){
- let audioKey:string|null=null;
- let stage="authorize";
+ let audioUrl:string|null=null;
  try{
- const user=await owner(request);const b=bindings();
- if(!b.ASR_ENDPOINT||!b.ASR_API_KEY)throw new ApiError(503,"The speech engine is not connected yet. Your audio has not been uploaded. Ask the workspace owner to connect the inference service.");
- const endpoint=new URL(b.ASR_ENDPOINT);if(endpoint.protocol!=="https:")throw new ApiError(503,"The speech engine requires a secure connection.");
- if(!request.headers.get("content-type")?.startsWith("multipart/form-data"))throw new ApiError(415,"Upload an audio file using the studio.");
- stage="read-upload";
- const bytes=await boundedBody(request,MAX_AUDIO_BYTES+65536);
- stage="parse-upload";
- const form=await new Response(bytes,{headers:{"Content-Type":request.headers.get("content-type")!}}).formData();
- const audio=form.get("audio"),language=languageSchema.parse(form.get("language"));
- if(form.get("consent")!=="true")throw new ApiError(400,"Permission to process this recording is required.");
- if(!(audio instanceof File)||!audio.size||audio.size>MAX_AUDIO_BYTES)throw new ApiError(400,"Choose a non-empty audio file up to 25 MB.");
- if(!/\.(mp3|wav|m4a|mp4|webm|ogg|flac)$/i.test(audio.name))throw new ApiError(415,"This audio format is not supported.");
- stage="quota";
- await libraryLimit(user);
- const day=new Date().toISOString().slice(0,10);
- const limit=await db().prepare("INSERT INTO rate_limits (owner,day,count) VALUES (?,?,1) ON CONFLICT(owner,day) DO UPDATE SET count = count + 1 WHERE count < 20 RETURNING count").bind(user,day).first<{count:number}>();
- if(!limit)throw new ApiError(429,"You have reached 20 transcription attempts today. Please try again tomorrow.");
- const upstream=new FormData();upstream.append("audio",audio);upstream.append("language",language);
- stage="inference-fetch";
- const response=await fetch(endpoint.toString(),{method:"POST",headers:{"Authorization":"Bearer "+b.ASR_API_KEY},body:upstream,signal:AbortSignal.timeout(180000),redirect:"manual"});
- if(response.status>=300&&response.status<400)throw new ApiError(504,"Transcription took too long. Please try a shorter recording.");
- if(!response.ok){if(response.status===422)throw new ApiError(422,"No clear speech was found, or the recording could not be decoded. Try a short, clear clip.");if(response.status===429)throw new ApiError(429,"The speech engine is busy. Please try again shortly.");throw new ApiError(502,"The speech engine could not complete this recording. Your audio is still on your device; try again.");}
- stage="inference-response";
- const result=inferenceSchema.parse(await response.json());
- const id=crypto.randomUUID(),createdAt=new Date().toISOString(),source=form.get("source")==="recording"?"recording":"upload";
- const title=source==="recording"?"Voice note · "+new Date().toISOString().slice(0,10):audio.name.replace(/\.[^.]+$/,"").slice(0,120)||"Untitled recording";
- audioKey="audio/"+id;
- const mime=audio.type.startsWith("audio/")?audio.type:"application/octet-stream";
- stage="save-audio";
- await bucket().put(audioKey,audio.stream(),{httpMetadata:{contentType:mime}});
- stage="save-transcript";
- await db().prepare("INSERT INTO transcripts (id,owner,title,language,text,original,created_at,duration,source,audio_key,mime) VALUES (?,?,?,?,?,?,?,?,?,?,?)").bind(id,user,title,language,result.text,result.text,createdAt,result.duration,source,audioKey,mime).run();
- audioKey=null;
- return json({transcript:{id,title,language,text:result.text,original:result.text,createdAt,duration:result.duration,source,hasAudio:true}},201);
+  await owner(request);
+  if(!process.env.ASR_ENDPOINT||!process.env.ASR_API_KEY)throw new ApiError(503,"Transcription is temporarily unavailable. Please try again later.");
+  const input=inputSchema.parse(await request.json());audioUrl=input.audioUrl;
+  const url=new URL(audioUrl);
+  if(url.protocol!=="https:"||!url.hostname.endsWith(".private.blob.vercel-storage.com")||!url.pathname.startsWith("/pending/"))throw new ApiError(400,"Choose a recording from this studio.");
+  const metadata=await audioHead(audioUrl);
+  if(!metadata||metadata.size>MAX_AUDIO_BYTES)throw new ApiError(400,"Choose an audio file up to 25 MB.");
+  await libraryLimit();
+  await recordAttempt();
+  const source=await getAudio(audioUrl);
+  if(!source?.stream)throw new ApiError(404,"This recording is unavailable.");
+  const audio=new Blob([await new Response(source.stream).arrayBuffer()],{type:input.mime});
+  const form=new FormData();form.append("audio",audio,input.fileName);form.append("language",input.language);
+  const endpoint=new URL(process.env.ASR_ENDPOINT);if(endpoint.protocol!=="https:")throw new ApiError(503,"Transcription is temporarily unavailable.");
+  const response=await fetch(endpoint,{method:"POST",headers:{Authorization:"Bearer "+process.env.ASR_API_KEY},body:form,signal:AbortSignal.timeout(180000),redirect:"manual"});
+  if(response.status>=300&&response.status<400)throw new ApiError(504,"Transcription took too long. Try a shorter recording.");
+  if(!response.ok){if(response.status===422)throw new ApiError(422,"No clear speech was found. Try a short, clear clip.");if(response.status===429)throw new ApiError(429,"The speech engine is busy. Try again shortly.");throw new ApiError(502,"The speech engine could not complete this recording. Try again.");}
+  const result=inferenceSchema.parse(await response.json());
+  const id=crypto.randomUUID(),createdAt=new Date().toISOString();
+  const title=input.source==="recording"?"Voice note - "+createdAt.slice(0,10):input.fileName.replace(/\.[^.]+$/,"").slice(0,120)||"Untitled recording";
+  const row:Row={id,title,language:input.language,text:result.text,original:result.text,createdAt,duration:result.duration,source:input.source,hasAudio:true,audioUrl,mime:input.mime};
+  await saveRow(row);audioUrl=null;
+  return json({transcript:row},201);
  }catch(e){
- if(!(e instanceof ApiError))console.error("Transcription stage failed",{stage,type:e instanceof Error?e.name:"Unknown",message:e instanceof Error?e.message:"Unknown"});
- if(audioKey){try{await bucket().delete(audioKey);}catch{console.error("Audio cleanup failed");}}
- if(e instanceof DOMException && (e.name==="TimeoutError"||e.name==="AbortError"))return json({error:"Transcription took too long. Your audio is still on your device. Please try a shorter clip."},504);
- return failure(e);
+  if(audioUrl){try{await removeAudio(audioUrl);}catch{console.error("Temporary audio cleanup failed");}}
+  if(e instanceof DOMException&&(e.name==="TimeoutError"||e.name==="AbortError"))return json({error:"Transcription took too long. Try a shorter recording."},504);
+  return failure(e);
  }
 }
-
