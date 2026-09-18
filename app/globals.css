@@ -13,3 +13,5 @@
 @media print{body{background:white;color:black}.sidebar,.topbar,.intro,.left-column,.panel-head,.doc-bottom,.footer,.demo-note,.doc-hint,.toast,audio{display:none!important}.shell,.workspace{display:block}.main{padding:0}.panel{border:0;background:white}.document-title,.document textarea{color:black}.document textarea{height:auto;min-height:600px}.document-meta,.document-subtitle{color:#555}}
 
 .print-content{display:none}@media print{.document textarea{display:none}.print-content{display:block;white-space:pre-wrap;color:black;line-height:1.8;font-size:18px}}
+
+.transcribe-status{margin:12px 0 0;color:var(--muted);font-size:12px;line-height:1.5;text-align:center}

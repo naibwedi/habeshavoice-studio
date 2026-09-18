@@ -16,9 +16,9 @@ docker build -t habeshavoice-inference .
 docker run --gpus all --env-file .env -p 127.0.0.1:8000:8000 habeshavoice-inference
 ~~~
 
-Copy .env.example to .env and replace the placeholder with a random secret of at least 32 characters. Default model: omniASR_LLM_300M. The model card reports roughly 5 GiB inference VRAM in its benchmark configuration; reserve headroom and measure on your hardware.
+Copy .env.example to .env and replace the placeholder with a random secret of at least 32 characters. Default model: badrex/Ethio-ASR-multilingual-600M, a 600M-parameter CTC model trained for Tigrinya and Amharic. Reserve GPU headroom and measure on your hardware.
 
-The Dockerfile is a starting point. Build and smoke-test the exact torch/fairseq2/CUDA combination on the target GPU host. This release does not claim a successful GPU container build or real-model inference run. ASR_DEVICE=cpu is supported in code but may exceed the app's three-minute request timeout.
+The Dockerfile is a starting point. Build and smoke-test the exact torch/transformers/CUDA combination on the target GPU host. ASR_DEVICE=cpu is supported in code but may exceed the app's three-minute request timeout.
 
 Use an HTTPS reverse proxy, request-body and connection limits, adequate temporary disk, and server-side secret storage. Do not log authorization headers or audio/transcript payloads.
 
@@ -56,7 +56,7 @@ python -m pip install "modal>=1.0,<2"
 modal setup
 ~~~
 
-Create a Modal Secret named habeshavoice-asr containing ASR_API_KEY, a random value of at least 32 characters. Use the Modal dashboard's Secrets page. Keep the value out of Git and command history. Deploy from the repository root:
+Create a Modal Secret named habeshavoice-asr-v2 containing ASR_API_KEY, a random value of at least 32 characters. Use the Modal dashboard's Secrets page. Keep the value out of Git and command history. Deploy from the repository root:
 
 ~~~sh
 modal deploy inference/modal_app.py
@@ -66,4 +66,4 @@ Modal prints an HTTPS URL for inference_api. Check its /healthz path and verify 
 
 Set the Site's runtime ASR_ENDPOINT to the printed URL with /v1/transcribe appended, and ASR_API_KEY to the same secret. Mark the key as secret and redeploy the current saved Site version to apply the environment revision. Do not put the key in browser code, Git, or .openai/hosting.json.
 
-The web app times out inference after 180 seconds. Modal Web Functions issue a redirect after 150 seconds, and the app rejects upstream redirects. A transcription must therefore complete within 150 seconds. Measure L4 speed on real recordings before relying on the five-minute upload limit. Modal's 30-second idle window also consumes GPU credit after each request.
+The web app times out inference after 180 seconds. Modal Web Functions issue a redirect after 150 seconds, and the app rejects upstream redirects. A transcription must therefore complete within 150 seconds. Measure L4 speed on real recordings before relying on the five-minute upload limit. Modal's 90-second idle window also consumes GPU credit after each request. It improves repeat-request latency but uses more of the free allowance.

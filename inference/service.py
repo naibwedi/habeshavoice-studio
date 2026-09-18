@@ -14,7 +14,7 @@ from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from starlette.responses import JSONResponse
 
 MAX_BYTES = 25 * 1024 * 1024
-LANGUAGES = {"ti": "tir_Ethi", "am": "amh_Ethi"}
+LANGUAGES = {"ti": "TIR", "am": "AMH"}
 class PayloadTooLarge(Exception):
     pass
 
@@ -83,18 +83,35 @@ def split_audio(path: Path, directory: Path) -> list[Path]:
         start = end
     return result
 
-class OmnilingualEngine:
+class EthioASREngine:
     def __init__(self):
+        import numpy as np
         import torch
-        from omnilingual_asr.models.inference.pipeline import ASRInferencePipeline
-        device = os.getenv("ASR_DEVICE", "cuda" if torch.cuda.is_available() else "cpu")
-        self.pipeline = ASRInferencePipeline(
-            model_card=os.getenv("ASR_MODEL", "omniASR_LLM_300M"),
-            device=device, dtype=torch.bfloat16 if device == "cuda" else torch.float32,
-        )
+        from transformers import AutoModelForCTC, AutoProcessor
+        self.np = np
+        self.torch = torch
+        self.device = os.getenv("ASR_DEVICE", "cuda" if torch.cuda.is_available() else "cpu")
+        model_id = os.getenv("ASR_MODEL", "badrex/Ethio-ASR-multilingual-600M")
+        self.processor = AutoProcessor.from_pretrained(model_id)
+        self.model = AutoModelForCTC.from_pretrained(model_id).to(self.device).eval()
+
     def transcribe(self, paths: list[Path], language: str) -> str:
-        texts = self.pipeline.transcribe([str(p) for p in paths], lang=[LANGUAGES[language]] * len(paths), batch_size=1)
-        return "\n\n".join(t.strip() for t in texts if t.strip())
+        texts = []
+        for path in paths:
+            with wave.open(str(path), "rb") as wav:
+                audio = self.np.frombuffer(wav.readframes(wav.getnframes()), dtype="<i2").astype(self.np.float32) / 32768.0
+            inputs = self.processor(audio, sampling_rate=16000, return_tensors="pt")
+            inputs = {key: value.to(self.device) for key, value in inputs.items()}
+            with self.torch.inference_mode():
+                logits = self.model(**inputs).logits
+            text = self.processor.batch_decode(logits.argmax(dim=-1))[0].strip()
+            for tag in ("[TIR]", "[AMH]"):
+                if text.startswith(tag):
+                    text = text[len(tag):].strip()
+                    break
+            if text:
+                texts.append(text)
+        return "\n\n".join(texts)
 
 def create_app(engine=None, api_key: str | None = None) -> FastAPI:
     lock = threading.Lock()
@@ -106,7 +123,7 @@ def create_app(engine=None, api_key: str | None = None) -> FastAPI:
         if state["engine"] is None:
             if not shutil.which(os.getenv("FFMPEG_PATH", "ffmpeg")):
                 raise RuntimeError("FFmpeg is required")
-            state["engine"] = OmnilingualEngine()
+            state["engine"] = EthioASREngine()
         state["ready"] = True
         yield
         state["ready"] = False

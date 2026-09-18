@@ -46,6 +46,7 @@ export default function Studio() {
   const [consent, setConsent] = useState(false);
   const [dragging, setDragging] = useState(false);
   const [busy, setBusy] = useState<"save" | "transcribe" | "delete" | null>(null);
+  const [transcribeElapsed, setTranscribeElapsed] = useState(0);
   const recorder = useRef<MediaRecorder | null>(null);
   const stream = useRef<MediaStream | null>(null);
   const chunks = useRef<Blob[]>([]);
@@ -86,6 +87,12 @@ export default function Studio() {
     }, 250);
     return () => clearInterval(id);
   }, [recording]);
+  useEffect(() => {
+    if (busy !== "transcribe") return;
+    const start = Date.now();
+    const id = setInterval(() => setTranscribeElapsed(Math.floor((Date.now() - start) / 1000)), 1000);
+    return () => clearInterval(id);
+  }, [busy]);
   useEffect(() => {
     const onUnload = (e: BeforeUnloadEvent) => {if(dirty || recording){e.preventDefault();}};
     window.addEventListener("beforeunload",onUnload);
@@ -176,7 +183,7 @@ export default function Studio() {
   }
   async function submitTranscription() {
     if(!file) return;
-    setBusy("transcribe");setError("");
+    setTranscribeElapsed(0);setBusy("transcribe");setError("");
     try {
       const form=new FormData();form.append("audio",file);form.append("language",language);form.append("source",fileSource);form.append("consent","true");
       const data=await api<{transcript:Transcript}>("/api/transcribe",{method:"POST",body:form});
@@ -227,7 +234,7 @@ export default function Studio() {
       {capture==="record"?<div className={"capture-stage"+(recording?" recording":"")}><div className="timer" aria-label="Recording duration">{formatTime(seconds)}</div><div className={"waveform"+(recording?" live":"")} aria-hidden="true">{bars.map((h,i)=><i key={i} style={{height:h,animationDelay:(i*.04)+"s"}}/>)}</div><p>{recording?"Recording your voice…":file?"Your recording is ready to review":"A quiet moment. A clear voice."}</p></div>:<button className={"upload-zone"+(dragging?" dragging":"")} onClick={()=>fileInput.current?.click()} onDragOver={e=>{e.preventDefault();setDragging(true);}} onDragLeave={()=>setDragging(false)} onDrop={e=>{e.preventDefault();setDragging(false);void chooseFile(e.dataTransfer.files[0]);}} disabled={!!busy}><CloudUpload size={30}/><strong>{file?file.name:"Drop your audio here"}</strong><span>{file?(file.size/1024/1024).toFixed(1)+" MB · Click to replace":"or browse files on your device"}</span><span>MP3, WAV, M4A, WebM, OGG, FLAC · 25 MB max</span></button>}
       <input ref={fileInput} className="visually-hidden" type="file" accept=".mp3,.wav,.m4a,.mp4,.webm,.ogg,.flac,audio/*" aria-label="Choose an audio file" onChange={e=>{void chooseFile(e.target.files?.[0]);e.target.value="";}}/>
       {fileUrl&&!recording&&<audio className="form-audio" controls src={fileUrl} aria-label="Review your audio before uploading"/>}
-      {file&&!recording?<><label className="privacy-toggle"><input type="checkbox" checked={consent} onChange={e=>setConsent(e.target.checked)}/>I have permission to process this recording. Upload it for transcription and save it in my private library.</label><button className="record-control" disabled={!consent||!!busy} onClick={()=>void transcribe()}>{busy==="transcribe"?<LoaderCircle size={18} className="loading-spin"/>:<AudioLines size={18}/>} {busy==="transcribe"?"Transcribing your audio…":"Transcribe "+LANGUAGES[language].name}</button><button className="discard" disabled={!!busy} onClick={()=>{setFile(null);setSeconds(0);setConsent(false);}}>Discard audio{fileDuration>0?" · "+formatTime(fileDuration):""}</button></>:capture==="record"?<button className="record-control" disabled={requestingMic||!!busy} onClick={()=>recording?recorder.current?.stop():void startRecording()}>{requestingMic?<LoaderCircle size={18} className="loading-spin"/>:recording?<Square size={16} fill="currentColor"/>:<Mic size={18}/>} {requestingMic?"Opening microphone…":recording?"Stop recording":"Start recording"}</button>:null}
+      {file&&!recording?<><label className="privacy-toggle"><input type="checkbox" checked={consent} onChange={e=>setConsent(e.target.checked)}/>I have permission to process this recording. Upload it for transcription and save it in my private library.</label><button className="record-control" disabled={!consent||!!busy} onClick={()=>void transcribe()}>{busy==="transcribe"?<LoaderCircle size={18} className="loading-spin"/>:<AudioLines size={18}/>} {busy==="transcribe"?"Transcribing your audio…":"Transcribe "+LANGUAGES[language].name}</button>{busy==="transcribe"&&transcribeElapsed>=5&&<p className="transcribe-status" role="status">Speech engine is working - {transcribeElapsed}s elapsed. The first request after idle may take longer.</p>}<button className="discard" disabled={!!busy} onClick={()=>{setFile(null);setSeconds(0);setConsent(false);}}>Discard audio{fileDuration>0?" · "+formatTime(fileDuration):""}</button></>:capture==="record"?<button className="record-control" disabled={requestingMic||!!busy} onClick={()=>recording?recorder.current?.stop():void startRecording()}>{requestingMic?<LoaderCircle size={18} className="loading-spin"/>:recording?<Square size={16} fill="currentColor"/>:<Mic size={18}/>} {requestingMic?"Opening microphone…":recording?"Stop recording":"Start recording"}</button>:null}
       <p className="capture-foot"><LockKeyhole size={12}/>{recording?"Stops automatically at 5 minutes":"Audio stays on your device until you transcribe"}</p></div>
       </section>
       <section className="panel sessions"><div className="panel-head"><h2 className="panel-title">Recent sessions</h2><button className="text-button" onClick={()=>setView("library")}>View library<ArrowRight size={13}/></button></div><div className="session-list">{recent.length?recent.map(row):<div className="empty"><AudioLines size={29}/><h3>No sessions yet</h3><p>Your recordings will appear here after transcription.</p></div>}</div></section>
