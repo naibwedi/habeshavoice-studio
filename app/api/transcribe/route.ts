@@ -24,8 +24,9 @@ export async function POST(request:Request){
  if(!limit)throw new ApiError(429,"You have reached 20 transcription attempts today. Please try again tomorrow.");
  const upstream=new FormData();upstream.append("audio",audio);upstream.append("language",language);
  stage="inference-fetch";
- const response=await fetch(endpoint.toString(),{method:"POST",headers:{"Authorization":"Bearer "+b.ASR_API_KEY},body:upstream,signal:AbortSignal.timeout(180000),redirect:"error"});
- if(!response.ok){if(response.status===422)throw new ApiError(422,"The recording could not be decoded or is longer than five minutes. Try a shorter, clear audio clip.");if(response.status===429)throw new ApiError(429,"The speech engine is busy. Please try again shortly.");throw new ApiError(502,"The speech engine could not complete this recording. Your audio is still on your device; try again.");}
+ const response=await fetch(endpoint.toString(),{method:"POST",headers:{"Authorization":"Bearer "+b.ASR_API_KEY},body:upstream,signal:AbortSignal.timeout(180000),redirect:"manual"});
+ if(response.status>=300&&response.status<400)throw new ApiError(504,"Transcription took too long. Please try a shorter recording.");
+ if(!response.ok){if(response.status===422)throw new ApiError(422,"No clear speech was found, or the recording could not be decoded. Try a short, clear clip.");if(response.status===429)throw new ApiError(429,"The speech engine is busy. Please try again shortly.");throw new ApiError(502,"The speech engine could not complete this recording. Your audio is still on your device; try again.");}
  stage="inference-response";
  const result=inferenceSchema.parse(await response.json());
  const id=crypto.randomUUID(),createdAt=new Date().toISOString(),source=form.get("source")==="recording"?"recording":"upload";
